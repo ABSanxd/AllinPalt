@@ -1,0 +1,45 @@
+<h2 class="mb-4">Registro de Nuevo Lote</h2>
+<div class="row">
+    <div class="col-md-7">
+        <div class="custom-card">
+            <form id="loteForm">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Código de Lote</label>
+                        <input type="text" id="codigo_lote" class="form-control" placeholder="Ej: LOT-X123" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Proveedor</label>
+                        <input type="text" id="proveedor" class="form-control" placeholder="Nombre de la empresa" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Lugar de Origen</label>
+                    <input type="text" id="lugar_origen" class="form-control" placeholder="Ubicación del fundo" required>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Temperatura Ambiente (°C)</label>
+                        <input type="number" id="temperatura" class="form-control" step="0.1" placeholder="25.0">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Fecha de Cosecha</label>
+                        <input type="date" id="fecha_cosecha" class="form-control">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-palt w-100 py-3"><i class="fas fa-save me-2"></i> Registrar Lote e Iniciar Trazabilidad</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="custom-card bg-light border">
+            <h5>Información de Trazabilidad</h5>
+            <p class="small text-muted">Este módulo asegura que cada palta procesada esté vinculada a su origen. Los datos registrados aquí alimentarán los modelos de predicción de vida útil.</p>
+            <ul class="small mt-3">
+                <li>Registro único por lote.</li>
+                <li>Sincronización automática con Supabase.</li>
+                <li>Cálculo de tiempos de ingreso.</li>
+            </ul>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,129 @@
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+:root {
+    --white: #ffffff;
+    --dark-green: #1b4332;
+    --mid-green: #2d6a4f;
+    --light-green: #74c69d;
+    --avocado-green: #95d5b2;
+    --bg-light: #f8f9fa;
+    --text-dark: #081c15;
+    --text-muted: #6c757d;
+    --danger: #d90429;
+    --warning: #ffb703;
+    --success: #40916c;
+}
+
+body {
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
+}
+
+/* Sidebar Navigation */
+#sidebar {
+    width: 280px;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: var(--dark-green);
+    color: var(--white);
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+#content {
+    margin-left: 280px;
+    min-height: 100vh;
+    padding: 20px;
+    transition: all 0.3s;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.7);
+    padding: 15px 25px;
+    font-weight: 500;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    transition: 0.3s;
+}
+
+.nav-link i {
+    width: 30px;
+    font-size: 1.1rem;
+}
+
+.nav-link:hover, .nav-link.active {
+    color: var(--white);
+    background: rgba(255, 255, 255, 0.1);
+    border-left: 4px solid var(--light-green);
+}
+
+/* Glass Cards */
+.custom-card {
+    background: var(--white);
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+/* Buttons */
+.btn-palt {
+    background: var(--mid-green);
+    color: white;
+    border-radius: 10px;
+    padding: 10px 20px;
+    border: none;
+    font-weight: 600;
+}
+
+.btn-palt:hover {
+    background: var(--dark-green);
+    color: white;
+}
+
+/* Stats */
+.stat-box {
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    background: var(--bg-light);
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--mid-green);
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+/* Monitor/Logs */
+#log-monitor {
+    background: #121212;
+    color: #00ff41;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    height: 250px;
+    overflow-y: auto;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    #sidebar { margin-left: -280px; }
+    #sidebar.active { margin-left: 0; }
+    #content { margin-left: 0; }
+    #content.active { margin-left: 280px; }
+}

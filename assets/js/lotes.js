@@ -25,18 +25,19 @@ const LotesModule = {
         
         try {
             const result = await ApiService.post('/api/v1/lotes/', data);
+            const lotCreated = result.data;
+
+            // Guardar lote como ACTIVO en el navegador para que el Dashboard lo detecte
+            localStorage.setItem('active_lot', JSON.stringify(lotCreated));
             
-            UI.addLog(`✅ Lote registrado: ${result.data.id}`, 'success');
-            UI.showAlert('Éxito', 'El lote ha sido registrado satisfactoriamente en Supabase.', 'success');
+            UI.addLog(`✅ Lote registrado ID: ${lotCreated.id}`, 'success');
+            UI.showAlert('Éxito', 'Lote registrado. Redirigiendo al Dashboard para iniciar captura...', 'success');
             
-            // Limpiar formulario
-            document.getElementById('loteForm').reset();
-            
-            // Redirigir al dashboard o historial si se desea
-            // UI.loadView('dashboard');
+            // Redirigir al dashboard usando el hash que configuramos
+            window.location.hash = '#dashboard';
             
         } catch (error) {
-            UI.addLog(`❌ Error al registrar lote. Verifica la consola y la API.`, 'error');
+            UI.addLog(`❌ Error al registrar lote.`, 'error');
             UI.showAlert('Error', 'No se pudo registrar el lote. Revisa la conexión con la API.', 'error');
         }
     }

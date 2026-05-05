@@ -7,28 +7,43 @@ const UI = {
 
     async init() {
         this.setupNavigation();
-        // Cargar vista inicial
-        await this.loadView('dashboard');
+        // Escuchar cambios en el hash (URL)
+        window.addEventListener('hashchange', () => this.handleRouting());
+        
+        // Cargar vista inicial según el hash actual o por defecto dashboard
+        await this.handleRouting();
+        
         this.addLog('🥑 Sistema AllinPalt V2.2 (Modular) Iniciado.');
     },
 
     setupNavigation() {
+        // Ya no necesitamos prevenir el default, dejamos que el hash cambie solo
+        // Los estilos 'active' se manejarán en handleRouting para que coincidan siempre
+    },
+
+    async handleRouting() {
+        // Obtener el nombre de la vista desde el hash (ej: #lotes -> lotes)
+        const hash = window.location.hash.substring(1) || 'dashboard';
+        
+        // Actualizar estilos de los links en el sidebar
         const navLinks = document.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
-            link.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const targetView = link.getAttribute('href').substring(1);
-                
-                // Active link style
-                navLinks.forEach(l => l.classList.remove('active'));
+            const linkView = link.getAttribute('href').substring(1);
+            if (linkView === hash) {
                 link.classList.add('active');
-
-                await this.loadView(targetView);
-            });
+            } else {
+                link.classList.remove('active');
+            }
         });
+
+        // Cargar la vista
+        await this.loadView(hash);
     },
 
     async loadView(viewName) {
+        // No recargar la misma vista si ya está activa
+        if (this.currentView === viewName) return;
+
         const container = document.getElementById('view-container');
         if (!container) return;
 
@@ -75,8 +90,27 @@ const UI = {
         logMonitor.scrollTop = logMonitor.scrollHeight;
     },
 
-    showAlert(title, text, icon) {
-        alert(`${title}: ${text}`);
+    /**
+     * Muestra un modal de alerta (solo botón OK)
+     */
+    showAlert(title, text, icon = 'info') {
+        ModalComponent.show({ title, text, icon, showCancel: false });
+    },
+
+    /**
+     * Muestra un modal de confirmación y devuelve una promesa
+     */
+    confirm(title, text, icon = 'question') {
+        return new Promise((resolve) => {
+            ModalComponent.show({ 
+                title, 
+                text, 
+                icon, 
+                showCancel: true,
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false)
+            });
+        });
     }
 };
 

@@ -88,6 +88,25 @@ body {
     color: white;
 }
 
+.btn-outline-palt {
+    color: var(--mid-green);
+    border: 2px solid var(--mid-green);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    background: transparent;
+}
+
+.btn-outline-palt:hover {
+    background: var(--mid-green);
+    color: white;
+}
+
+/* Color utilitario — íconos y textos verdes (usado en views con text-palt) */
+.text-palt {
+    color: var(--mid-green) !important;
+}
+
 /* Stats */
 .stat-box {
     text-align: center;

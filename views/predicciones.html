@@ -1,23 +1,142 @@
-<h2 class="mb-4">Inteligencia y Recomendaciones</h2>
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="custom-card border-start border-4 border-success">
-            <h5>Vida Útil Estimada</h5>
-            <h1 class="display-1 fw-bold text-success mb-0" id="vidaUtil">--</h1>
-            <p class="text-muted">Días restantes para consumo óptimo</p>
-        </div>
+<h2 class="mb-1">Inteligencia y Recomendaciones</h2>
+<p class="text-muted mb-4 small">Análisis predictivo por lote.</p>
+
+<!-- Botones de simulación (SOLO PARA PRUEBAS - quitar en producción) -->
+<div class="custom-card mb-4 border border-warning">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="badge bg-warning text-dark">DEV</span>
+        <small class="text-muted fw-bold">Simulación de predicción — quitar antes de la demo final</small>
     </div>
-    <div class="col-md-6">
-        <div class="custom-card border-start border-4 border-warning">
-            <h5>Prioridad de Venta</h5>
-            <h1 class="display-3 fw-bold text-warning" id="prioridadVenta">---</h1>
-            <p class="text-muted">Recomendación basada en madurez y temperatura</p>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-sm btn-outline-danger" onclick="PredictionsModule.simular('alto')">
+            🚨 Simular Riesgo Alto
+        </button>
+        <button class="btn btn-sm btn-outline-warning" onclick="PredictionsModule.simular('medio')">
+            ⚠️ Simular Riesgo Medio
+        </button>
+        <button class="btn btn-sm btn-outline-success" onclick="PredictionsModule.simular('bajo')">
+            ✅ Simular Riesgo Bajo
+        </button>
+    </div>
+</div>
+
+<!-- Selector de lote -->
+<div class="custom-card mb-4">
+    <div class="row align-items-center g-3">
+        <div class="col-md-7">
+            <label class="small text-muted text-uppercase fw-bold mb-1"
+                   style="letter-spacing:1px; font-size:0.7rem;">
+                Seleccionar lote
+            </label>
+            <select id="selectLote" class="form-select">
+                <option value="">— Elija un lote para ver su predicción —</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button id="btnCargarPrediccion" class="btn btn-palt w-100 mt-3 mt-md-0" disabled>
+                <i class="fas fa-brain me-2"></i> Ver predicción
+            </button>
+        </div>
+        <div class="col-md-2 text-muted text-end" style="font-size:0.95rem;">
+            <span id="labelLoteActivo" class="badge bg-success" style="display:none;">
+                <i class="fas fa-circle me-1"></i> Lote activo
+            </span>
         </div>
     </div>
 </div>
-<div class="custom-card mt-4">
-    <h5><i class="fas fa-lightbulb text-warning me-2"></i> Sugerencias de Exportación</h5>
-    <div class="p-3 bg-light rounded mt-3">
-        <p id="recomendacionTexto" class="mb-0 italic">Seleccione un lote para ver las recomendaciones del sistema inteligente.</p>
+
+<!-- Estado vacío (visible por defecto) -->
+<div id="estadoVacio" class="text-center py-5">
+    <i class="fas fa-seedling text-muted" style="font-size:3rem; opacity:0.25;"></i>
+    <p class="text-muted mt-3 mb-0">Seleccione un lote y presione "Ver predicción".</p>
+    <p class="text-muted small">Si la predicción aún no fue generada por el sistema, aparecerá un aviso.</p>
+</div>
+
+<!-- Resultados (ocultos hasta cargar datos) -->
+<div id="resultadosPrediccion" class="feed-oculto">
+
+    <!-- Vida útil + Prioridad -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="custom-card border-start border-4 border-success h-100">
+                <div class="small text-muted text-uppercase fw-bold mb-2"
+                     style="letter-spacing:1px; font-size:0.7rem;">Vida Útil Estimada</div>
+                <div class="d-flex align-items-end gap-2 mb-1">
+                    <span class="display-2 fw-bold lh-1 text-success" id="vidaUtil">--</span>
+                    <span class="text-muted mb-2">días</span>
+                </div>
+                <p class="text-muted small mb-0">Días restantes para consumo óptimo</p>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="custom-card border-start border-4 border-primary h-100">
+                <div class="small text-muted text-uppercase fw-bold mb-2"
+                     style="letter-spacing:1px; font-size:0.7rem;">Prioridad de Venta</div>
+                <div class="display-4 fw-bold text-primary mb-1" id="prioridadVenta">---</div>
+                <p class="text-muted small mb-0">Basada en madurez y temperatura</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta de riesgo -->
+    <div class="custom-card mb-4 border-start border-4" id="cardRiesgo"
+         style="border-color: #6c757d !important;">
+        <div class="row align-items-center">
+            <div class="col-auto text-center pe-0">
+                <div id="riesgoIcono" style="font-size:2.8rem; line-height:1;">❔</div>
+            </div>
+            <div class="col">
+                <div class="small text-muted text-uppercase fw-bold mb-1"
+                     style="letter-spacing:1px; font-size:0.7rem;">Riesgo de Deterioro</div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span id="riesgoLabel" class="fw-bold" style="font-size:1.6rem; color:#6c757d;">---</span>
+                    <span id="riesgoBadge" class="badge bg-secondary">Sin datos</span>
+                </div>
+                <p id="riesgoDescripcion" class="text-muted small mb-0">
+                    Seleccione un lote para ver el análisis de riesgo.
+                </p>
+            </div>
+            <div class="col-md-4 mt-3 mt-md-0">
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="small text-muted">% Defectuosas</div>
+                        <div class="fw-bold" id="riesgoPctDefectuosas">--%</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="small text-muted">Temp. futura</div>
+                        <div class="fw-bold" id="riesgoTempFutura">--°C</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recomendación -->
+    <div class="custom-card">
+        <h5 class="mb-3">
+            <i class="fas fa-lightbulb text-warning me-2"></i> Sugerencias de Exportación
+        </h5>
+        <div class="p-3 rounded" style="background:#f8f9fa; border-left:3px solid var(--mid-green);">
+            <p id="recomendacionTexto" class="mb-0 fst-italic text-muted">
+                Sin recomendación disponible.
+            </p>
+        </div>
+    </div>
+
+</div><!-- fin resultadosPrediccion -->
+
+<!-- Estado: predicción aún no generada -->
+<div id="estadoSinPrediccion" class="feed-oculto">
+    <div class="custom-card text-center py-5">
+        <i class="fas fa-hourglass-half text-warning mb-3" style="font-size:2.5rem;"></i>
+        <h5 class="text-muted">Predicción no disponible aún</h5>
+        <p class="text-muted small mb-0">
+            Este lote aún no tiene predicción generada.<br>
+            El sistema la calculará automáticamente al finalizar el procesamiento.
+        </p>
     </div>
 </div>
+
+<style>
+.feed-oculto { display: none !important; }
+</style>

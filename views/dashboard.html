@@ -1,11 +1,16 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Panel en Tiempo Real</h2>
     <div>
-        <button id="btnStartCapture" class="btn btn-palt me-2"><i class="fas fa-play"></i> Iniciar</button>
-        <button id="btnStopCapture" class="btn btn-outline-danger"><i class="fas fa-stop"></i> Detener</button>
+        <button id="btnStartCapture" class="btn btn-palt me-2">
+            <i class="fas fa-play"></i> Iniciar
+        </button>
+        <button id="btnStopCapture" class="btn btn-outline-danger">
+            <i class="fas fa-stop"></i> Detener
+        </button>
     </div>
 </div>
 
+<!-- Tarjetas de métricas -->
 <div class="row g-4 mb-4">
     <div class="col-md-3">
         <div class="custom-card stat-box">
@@ -33,22 +38,84 @@
     </div>
 </div>
 
+<!-- Feed + Monitor -->
 <div class="row">
     <div class="col-lg-8">
         <div class="custom-card">
-            <h5 class="mb-4"><i class="fas fa-video me-2 text-palt"></i> Previsualización de Banda</h5>
-            <div class="bg-dark rounded position-relative d-flex align-items-center justify-content-center" style="height: 400px;">
-                <i class="fas fa-video-slash text-white-50 fs-1"></i>
+            <h5 class="mb-3">
+                <i class="fas fa-video me-2 text-palt"></i> Previsualización de Banda
+            </h5>
+
+            <!-- ESTADO A: Sin captura (visible por defecto) -->
+            <div id="feedOffline"
+                 class="bg-dark rounded position-relative d-flex flex-column align-items-center justify-content-center"
+                 style="height: 400px;">
+                <i class="fas fa-video-slash text-white-50 mb-3" style="font-size: 2.5rem;"></i>
+                <p class="text-white-50 small mb-0" id="feedOfflineMsg">Sin captura activa</p>
+                <p class="text-white-50 mb-0" style="font-size: 0.7rem; opacity: 0.5;">
+                    Registre un lote e inicie la captura
+                </p>
                 <div class="position-absolute top-0 start-0 p-3">
-                    <span class="badge bg-danger">LIVE FEED</span>
+                    <span class="badge bg-secondary" id="feedOfflineBadge">OFFLINE</span>
                 </div>
             </div>
+
+            <!-- ESTADO B: Captura activa con canvas de simulación (oculto por defecto) -->
+            <div id="feedOnline"
+                 class="rounded position-relative overflow-hidden feed-oculto"
+                 style="height: 400px; background: #111;">
+
+                <canvas id="bandaCanvas" style="width:100%; height:100%; display:block;"></canvas>
+
+                <!-- Badge ANALIZANDO arriba izquierda -->
+                <div class="position-absolute top-0 start-0 p-3 d-flex align-items-center gap-2">
+                    <span class="badge bg-danger" style="animation: blink-badge 1.2s infinite;">
+                        <i class="fas fa-circle me-1" style="font-size:0.4rem; vertical-align:middle;"></i>
+                        ANALIZANDO
+                    </span>
+                    <span class="badge bg-dark bg-opacity-75 text-white-50">
+                        <i class="fas fa-camera me-1"></i> API activa
+                    </span>
+                </div>
+
+                <!-- Info del lote abajo -->
+                <div class="position-absolute bottom-0 start-0 end-0 p-3"
+                     style="background: linear-gradient(transparent, rgba(0,0,0,0.85));">
+                    <small class="text-white-50">
+                        <i class="fas fa-box me-1"></i>
+                        Lote: <span id="feedLoteCodigo" class="text-white fw-bold">---</span>
+                        &nbsp;&nbsp;
+                        <i class="fas fa-clock me-1"></i>
+                        <span id="feedCronometro">00:00:00</span>
+                        &nbsp;&nbsp;
+                        <span class="text-success" style="font-size:0.7rem;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            La cámara real está siendo usada por la API
+                        </span>
+                    </small>
+                </div>
+            </div>
+
         </div>
     </div>
+
+    <!-- Monitor de sistema -->
     <div class="col-lg-4">
         <div class="custom-card">
-            <h5 class="mb-3"><i class="fas fa-microchip me-2 text-palt"></i> Monitor de Sistema</h5>
+            <h5 class="mb-3">
+                <i class="fas fa-microchip me-2 text-palt"></i> Monitor de Sistema
+            </h5>
             <div id="log-monitor"></div>
         </div>
     </div>
 </div>
+
+<style>
+/* Control de visibilidad del feed — gana sobre cualquier clase de Bootstrap */
+.feed-oculto { display: none !important; }
+
+@keyframes blink-badge {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+}
+</style>

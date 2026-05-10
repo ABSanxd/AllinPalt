@@ -145,20 +145,22 @@ const VisionModule = {
 
     // ── Feed visual ──────────────────────────────────────────────────────────
     _mostrarFeedActivo() {
-        // Ocultar pantalla negra, mostrar canvas
         document.getElementById('feedOffline').classList.add('feed-oculto');
         document.getElementById('feedOnline').classList.remove('feed-oculto');
 
         const codigo = document.getElementById('feedLoteCodigo');
         if (codigo && this.activeLot) codigo.textContent = this.activeLot.codigo_lote;
 
-        this._iniciarCanvasBanda();
+        // Delegamos al componente visual
+        VisionCanvas.start();
     },
 
     _ocultarFeedActivo() {
         document.getElementById('feedOffline').classList.remove('feed-oculto');
         document.getElementById('feedOnline').classList.add('feed-oculto');
-        this._detenerCanvasBanda();
+        
+        // Detenemos el componente visual
+        VisionCanvas.stop();
     },
 
     // ── Cronómetro ───────────────────────────────────────────────────────────
@@ -195,7 +197,6 @@ const VisionModule = {
                 const data = await ApiService.get(`/api/v1/captura/monitor/${loteId}?ultimas_lineas=10`);
                 if (!data) return;
 
-                // 1. Actualizar Conteos
                 const res = data.resumen || {};
                 const elTotal  = document.getElementById('totalPaltas');
                 const elBuenas = document.getElementById('paltasBuenas');
@@ -205,7 +206,6 @@ const VisionModule = {
                 if (elBuenas) elBuenas.textContent = res.cant_buenas        ?? 0;
                 if (elMalas)  elMalas.textContent  = res.cant_defectuosas   ?? 0;
 
-                // 2. Procesar Logs
                 const lineas = data.logs || [];
                 if (lineas.length > 0) {
                     const ultima = lineas[lineas.length - 1];
@@ -230,7 +230,6 @@ const VisionModule = {
                     }
                 }
 
-                // 3. Verificar si el servidor apagó la captura (por error o fin)
                 if (!data.captura_activa && this.isCapturing) {
                     UI.addLog('⚠️ La captura se detuvo en el servidor.', 'warning');
                     this.toggleCapture(false);
@@ -248,246 +247,6 @@ const VisionModule = {
         this._warnsCamaraConsecutivos = 0;
     },
 
-    // ── Animación canvas: banda transportadora con paltas ────────────────────
-    _iniciarCanvasBanda() {
-        const canvas = document.getElementById('bandaCanvas');
-        if (!canvas) return;
-
-        // Ajustar resolución del canvas al tamaño real en pantalla
-        const rect = canvas.getBoundingClientRect();
-        canvas.width  = rect.width  || 700;
-        canvas.height = rect.height || 400;
-
-        const ctx = canvas.getContext('2d');
-        const W   = canvas.width;
-        const H   = canvas.height;
-
-        // ── Paltas: generamos varias con distintas propiedades ──────────────
-        const paltas = Array.from({ length: 7 }, (_, i) => this._crearPalta(W, H, i));
-
-        // Última detección para los bounding boxes
-        let detecciones = []; // { x, y, w, h, label, conf, alpha }
-
-        let frame = 0;
-        const VELOCIDAD_BANDA = 1.4; // px por frame
-
-        const dibujar = () => {
-            ctx.clearRect(0, 0, W, H);
-
-            // ── Fondo: banda transportadora ─────────────────────────────────
-            // Fondo oscuro general
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(0, 0, W, H);
-
-            // Líneas de la banda (stripes moviéndose)
-            const stripeOffset = (frame * VELOCIDAD_BANDA * 0.5) % 60;
-            ctx.fillStyle = '#222';
-            for (let x = -60 + stripeOffset; x < W + 60; x += 60) {
-                ctx.fillRect(x, 0, 30, H);
-            }
-
-            // Bordes metálicos de la banda
-            const bandaY1 = H * 0.12;
-            const bandaY2 = H * 0.88;
-            ctx.fillStyle = '#2a2a2a';
-            ctx.fillRect(0, 0, W, bandaY1);
-            ctx.fillRect(0, bandaY2, W, H - bandaY2);
-
-            // Líneas guía de la banda
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(0, bandaY1); ctx.lineTo(W, bandaY1); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, bandaY2); ctx.lineTo(W, bandaY2); ctx.stroke();
-
-            // Líneas transversales de la banda
-            ctx.strokeStyle = '#2d2d2d';
-            ctx.lineWidth = 1;
-            const lineOffset = (frame * VELOCIDAD_BANDA) % 40;
-            for (let x = -40 + lineOffset; x < W + 40; x += 40) {
-                ctx.beginPath();
-                ctx.moveTo(x, bandaY1);
-                ctx.lineTo(x, bandaY2);
-                ctx.stroke();
-            }
-
-            // ── Mover y dibujar paltas ──────────────────────────────────────
-            paltas.forEach(p => {
-                p.x -= VELOCIDAD_BANDA * p.velocidad;
-
-                // Reiniciar al salir por la izquierda
-                if (p.x + p.rx < 0) {
-                    p.x = W + p.rx + Math.random() * 80;
-                    p.y = bandaY1 + p.ry + Math.random() * (bandaY2 - bandaY1 - p.ry * 2);
-                    p.esDefectuosa = Math.random() < 0.2; // 20% de defectuosas
-                    p.manchaAngulo = Math.random() * Math.PI * 2;
-                }
-
-                this._dibujarPalta(ctx, p);
-
-                // Disparar detección cuando la palta pasa por el centro
-                if (Math.abs(p.x - W * 0.5) < 3 && frame % 3 === 0) {
-                    detecciones.push({
-                        x: p.x - p.rx - 8,
-                        y: p.y - p.ry - 8,
-                        w: p.rx * 2 + 16,
-                        h: p.ry * 2 + 16,
-                        label: p.esDefectuosa ? 'Defectuosa' : 'Buena',
-                        conf: (0.82 + Math.random() * 0.15).toFixed(2),
-                        alpha: 1.0,
-                        esDefectuosa: p.esDefectuosa
-                    });
-                }
-            });
-
-            // ── Dibujar bounding boxes de detección ─────────────────────────
-            detecciones = detecciones.filter(d => d.alpha > 0);
-            detecciones.forEach(d => {
-                const color = d.esDefectuosa ? `rgba(220,53,69,${d.alpha})` : `rgba(25,135,84,${d.alpha})`;
-                ctx.strokeStyle = color;
-                ctx.lineWidth   = 2;
-                ctx.strokeRect(d.x, d.y, d.w, d.h);
-
-                // Esquinas estilo YOLO
-                const cs = 10;
-                ctx.lineWidth = 3;
-                [[d.x, d.y], [d.x + d.w, d.y], [d.x, d.y + d.h], [d.x + d.w, d.y + d.h]].forEach(([cx, cy], i) => {
-                    ctx.beginPath();
-                    ctx.moveTo(cx + (i % 2 === 0 ? cs : -cs), cy);
-                    ctx.lineTo(cx, cy);
-                    ctx.lineTo(cx, cy + (i < 2 ? cs : -cs));
-                    ctx.stroke();
-                });
-
-                // Etiqueta
-                ctx.fillStyle = color;
-                const labelY  = d.y > 20 ? d.y - 4 : d.y + d.h + 14;
-                ctx.font      = 'bold 11px monospace';
-                ctx.fillText(`${d.label} ${d.conf}`, d.x + 2, labelY);
-
-                d.alpha -= 0.012; // fade out
-            });
-
-            // ── Línea de escaneo animada ────────────────────────────────────
-            const scanX = W * 0.5 + Math.sin(frame * 0.03) * 4;
-            const grad  = ctx.createLinearGradient(scanX - 1, bandaY1, scanX + 1, bandaY2);
-            grad.addColorStop(0,   'rgba(116,198,157,0)');
-            grad.addColorStop(0.5, 'rgba(116,198,157,0.6)');
-            grad.addColorStop(1,   'rgba(116,198,157,0)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(scanX - 1, bandaY1, 2, bandaY2 - bandaY1);
-
-            // Texto de la línea de escaneo
-            ctx.font      = '10px monospace';
-            ctx.fillStyle = 'rgba(116,198,157,0.7)';
-            ctx.fillText('SCAN', scanX + 4, bandaY1 + 14);
-
-            // ── Overlay de información ──────────────────────────────────────
-            ctx.font      = '11px monospace';
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.fillText(`FRAME ${String(frame).padStart(5, '0')}`, W - 100, H - 8);
-
-            frame++;
-            this._canvasAnimId = requestAnimationFrame(dibujar);
-        };
-
-        dibujar();
-    },
-
-    _detenerCanvasBanda() {
-        if (this._canvasAnimId) {
-            cancelAnimationFrame(this._canvasAnimId);
-            this._canvasAnimId = null;
-        }
-    },
-
-    // ── Helpers de dibujo ────────────────────────────────────────────────────
-    _crearPalta(W, H, index) {
-        const bandaY1 = H * 0.12;
-        const bandaY2 = H * 0.88;
-        const rx = 22 + Math.random() * 14; // radio horizontal
-        const ry = 16 + Math.random() * 10; // radio vertical
-        return {
-            x: (W / 7) * index + Math.random() * 40,
-            y: bandaY1 + ry + Math.random() * (bandaY2 - bandaY1 - ry * 2),
-            rx, ry,
-            velocidad: 0.8 + Math.random() * 0.6,
-            esDefectuosa: Math.random() < 0.2,
-            manchaAngulo: Math.random() * Math.PI * 2,
-            rotacion: (Math.random() - 0.5) * 0.4,
-        };
-    },
-
-    _dibujarPalta(ctx, p) {
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rotacion);
-
-        // Sombra
-        ctx.shadowColor   = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur    = 8;
-        ctx.shadowOffsetY = 4;
-
-        // Cuerpo de la palta (forma ovalada con gradiente)
-        const grad = ctx.createRadialGradient(-p.rx * 0.2, -p.ry * 0.2, 2, 0, 0, p.rx * 1.2);
-
-        if (p.esDefectuosa) {
-            // Palta defectuosa: tonos marrones/amarillos
-            grad.addColorStop(0,   '#8B7355');
-            grad.addColorStop(0.5, '#6B5A3A');
-            grad.addColorStop(1,   '#4A3728');
-        } else {
-            // Palta buena: verde oscuro característico de hass madura
-            grad.addColorStop(0,   '#3a5a40');
-            grad.addColorStop(0.5, '#2d4a35');
-            grad.addColorStop(1,   '#1a2e20');
-        }
-
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur  = 8;
-        ctx.fillStyle   = grad;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
-
-        // Textura: pequeños puntos/bumps en la piel
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2 + p.manchaAngulo;
-            const dist  = p.rx * 0.55;
-            const bx    = Math.cos(angle) * dist;
-            const by    = Math.sin(angle) * dist * (p.ry / p.rx);
-            ctx.beginPath();
-            ctx.arc(bx, by, 2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // Si es defectuosa: mancha visible
-        if (p.esDefectuosa) {
-            ctx.fillStyle = 'rgba(80,40,20,0.7)';
-            ctx.beginPath();
-            ctx.ellipse(
-                Math.cos(p.manchaAngulo) * p.rx * 0.3,
-                Math.sin(p.manchaAngulo) * p.ry * 0.3,
-                p.rx * 0.35, p.ry * 0.25,
-                p.manchaAngulo, 0, Math.PI * 2
-            );
-            ctx.fill();
-        }
-
-        // Brillo
-        const brillo = ctx.createRadialGradient(-p.rx * 0.3, -p.ry * 0.35, 1, -p.rx * 0.2, -p.ry * 0.25, p.rx * 0.5);
-        brillo.addColorStop(0,   'rgba(255,255,255,0.18)');
-        brillo.addColorStop(1,   'rgba(255,255,255,0)');
-        ctx.fillStyle = brillo;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, p.rx, p.ry, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    },
-
     _mostrarBannerCamara(mostrar) {
         let banner = document.getElementById('bannerCamaraSinSenal');
         if (mostrar) {
@@ -495,25 +254,15 @@ const VisionModule = {
                 banner = document.createElement('div');
                 banner.id = 'bannerCamaraSinSenal';
                 banner.style.cssText = `
-                    position: absolute;
-                    top: 50%; left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.82);
-                    border: 1px solid #dc3545;
-                    border-radius: 10px;
-                    padding: 16px 24px;
-                    text-align: center;
-                    z-index: 10;
-                    color: white;
+                    position: absolute; top: 50%; left: 50%;
+                    transform: translate(-50%, -50%); background: rgba(0,0,0,0.82);
+                    border: 1px solid #dc3545; border-radius: 10px; padding: 16px 24px;
+                    text-align: center; z-index: 10; color: white;
                 `;
                 banner.innerHTML = `
                     <div style="font-size:2rem; margin-bottom:8px;">📷</div>
-                    <div style="color:#dc3545; font-weight:700; font-size:0.95rem;">
-                        Cámara no detectada
-                    </div>
-                    <div style="color:rgba(255,255,255,0.6); font-size:0.75rem; margin-top:4px;">
-                        La API sigue activa y reintentando
-                    </div>
+                    <div style="color:#dc3545; font-weight:700; font-size:0.95rem;">Cámara no detectada</div>
+                    <div style="color:rgba(255,255,255,0.6); font-size:0.75rem; margin-top:4px;">La API sigue activa y reintentando</div>
                 `;
                 const feedOnline = document.getElementById('feedOnline');
                 if (feedOnline) feedOnline.appendChild(banner);

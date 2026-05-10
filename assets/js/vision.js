@@ -33,6 +33,7 @@ const VisionModule = {
         if (storedLot) {
             this.activeLot = JSON.parse(storedLot);
             this.updateLotUI();
+            if (btnStop) btnStop.disabled = true; // Lote listo, pero cámara apagada
         } else {
             this.disableControls();
         }
@@ -52,10 +53,14 @@ const VisionModule = {
     },
 
     disableControls() {
-        const btn = document.getElementById('btnStartCapture');
-        if (btn) {
-            btn.disabled = true;
-            btn.title = 'Debe registrar un lote antes de iniciar';
+        const btnStart = document.getElementById('btnStartCapture');
+        const btnStop = document.getElementById('btnStopCapture');
+        if (btnStart) {
+            btnStart.disabled = true;
+            btnStart.title = 'Debe registrar un lote antes de iniciar';
+        }
+        if (btnStop) {
+            btnStop.disabled = true;
         }
         UI.addLog('⚠️ No hay ningún lote activo. Vaya a "Nuevo Lote" para comenzar.', 'warning');
     },
@@ -78,44 +83,62 @@ const VisionModule = {
             UI.addLog(`🚀 Iniciando análisis para lote: ${this.activeLot.id}...`, 'success');
 
             try {
-                await ApiService.post('/api/v1/captura/iniciar-captura');
+                await ApiService.post(`/api/v1/captura/iniciar-captura?lote_id=${this.activeLot.id}`);
                 UI.addLog('📷 Cámara tomada por la API. Mostrando simulación visual.', 'info');
             } catch (error) {
-                UI.addLog('❌ Error al iniciar cámara en el servidor.', 'error');
+                const msg = error.detail || 'Error al iniciar la cámara.';
+                UI.addLog(`❌ ${msg}`, 'error');
+                UI.showAlert('Atención', msg, 'warning');
+                
+                // Si el lote ya está finalizado, limpiar y redirigir
+                if (error.status === 400 || msg.includes('finalizado')) {
+                    localStorage.removeItem('active_lot');
+                    window.location.hash = '#registro';
+                }
+                
                 this.toggleCapture(false);
                 return;
             }
 
             this._mostrarFeedActivo();
             this._iniciarCronometro();
-            this._iniciarPollingLogs();
-            this._iniciarPollingContadores();
+            this._iniciarPollingMaestro();
 
         } else {
+            // 1. Pedir confirmación ANTES de detener nada
+            const confirmClose = await UI.confirm(
+                'Finalizar Procesamiento',
+                '¿Estás seguro de detener la captura? Se generará el resumen final y el lote se marcará como finalizado.',
+                'question'
+            );
+
+            if (!confirmClose) {
+                // Si cancela, volvemos a dejar los botones como estaban (Detener habilitado)
+                if (btnStart) btnStart.disabled = true;
+                if (btnStop)  btnStop.disabled  = false;
+                this.isCapturing = true;
+                return;
+            }
+
+            // 2. Si confirma, procedemos a detener todo
             if (btnStart) btnStart.disabled = false;
             if (btnStop)  btnStop.disabled  = true;
 
-            UI.addLog('⏹️ Deteniendo captura...', 'warning');
+            UI.addLog('⏹️ Deteniendo captura y generando resumen...', 'warning');
 
             this._ocultarFeedActivo();
             this._detenerCronometro();
-            this._detenerPollingLogs();
-            this._detenerPollingContadores();
+            this._detenerPollingMaestro();
 
             try {
                 await ApiService.post('/api/v1/captura/detener-captura');
-            } catch (error) {
-                console.error(error);
-            }
-
-            const confirmClose = await UI.confirm(
-                'Finalizar Lote',
-                '¿Desea cerrar este lote y ver el historial?',
-                'question'
-            );
-            if (confirmClose) {
+                UI.addLog('✅ Resumen guardado en Supabase.', 'success');
+                
                 localStorage.removeItem('active_lot');
                 window.location.hash = '#historial';
+            } catch (error) {
+                console.error(error);
+                UI.showAlert('Error', 'Hubo un problema al cerrar el lote en el servidor.', 'error');
             }
         }
     },
@@ -156,133 +179,73 @@ const VisionModule = {
         clearInterval(this._cronometroInterval);
     },
 
-    // ── Polling de logs del backend ──────────────────────────────────────────
-    _ultimaLineaLog: null,  // para no repetir la misma línea
+    // ── Polling Maestro (Conteos + Logs + Estado) ───────────────────────────
+    _ultimaLineaLog: null,
     _warnsCamaraConsecutivos: 0,
+    _maestroInterval: null,
 
-    _iniciarPollingLogs() {
+    _iniciarPollingMaestro() {
+        if (!this.activeLot) return;
+        const loteId = this.activeLot.id;
         this._warnsCamaraConsecutivos = 0;
         this._ultimaLineaLog = null;
 
-        this._logsInterval = setInterval(async () => {
+        this._maestroInterval = setInterval(async () => {
             try {
-                // Pedir las últimas 10 líneas para no perder warns entre OKs
-                const data = await ApiService.get('/api/v1/captura/logs-captura?ultimas=10');
-                if (!data || !data.lineas || data.lineas.length === 0) return;
-
-                const lineas = data.lineas;
-                const ultima = lineas[lineas.length - 1];
-
-                // Evitar repetir la misma línea en cada poll
-                if (ultima === this._ultimaLineaLog) return;
-                this._ultimaLineaLog = ultima;
-
-                // Contar cuántas de las últimas líneas son WARN de cámara
-                const warnsRecientes = lineas.filter(l =>
-                    l.includes('[WARN]') && l.includes('Camara')
-                ).length;
-
-                if (warnsRecientes >= 3) {
-                    // 3+ warns seguidos = cámara claramente no disponible
-                    this._warnsCamaraConsecutivos++;
-                    if (this._warnsCamaraConsecutivos === 1) {
-                        // Solo mostrar el banner la primera vez que se detecta
-                        UI.addLog('🔴 Cámara no detectada. Verificar conexión.', 'error');
-                        this._mostrarBannerCamara(true);
-                    }
-                } else {
-                    // Hay OKs recientes → cámara funcionando
-                    if (this._warnsCamaraConsecutivos > 0) {
-                        UI.addLog('✅ Cámara recuperada.', 'success');
-                        this._mostrarBannerCamara(false);
-                    }
-                    this._warnsCamaraConsecutivos = 0;
-
-                    // Mostrar la última línea OK en el monitor
-                    if (ultima.includes('[OK]')) {
-                        UI.addLog(`📸 ${ultima}`, 'success');
-                    }
-                }
-
-            } catch (_) {
-                // silencioso
-            }
-        }, 3000);
-    },
-
-    _mostrarBannerCamara(mostrar) {
-        // Buscar o crear el banner de alerta dentro del feedOnline
-        let banner = document.getElementById('bannerCamaraSinSenal');
-
-        if (mostrar) {
-            if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'bannerCamaraSinSenal';
-                banner.style.cssText = `
-                    position: absolute;
-                    top: 50%; left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.82);
-                    border: 1px solid #dc3545;
-                    border-radius: 10px;
-                    padding: 16px 24px;
-                    text-align: center;
-                    z-index: 10;
-                    color: white;
-                `;
-                banner.innerHTML = `
-                    <div style="font-size:2rem; margin-bottom:8px;">📷</div>
-                    <div style="color:#dc3545; font-weight:700; font-size:0.95rem;">
-                        Cámara no detectada
-                    </div>
-                    <div style="color:rgba(255,255,255,0.6); font-size:0.75rem; margin-top:4px;">
-                        La API sigue activa y reintentando
-                    </div>
-                `;
-                const feedOnline = document.getElementById('feedOnline');
-                if (feedOnline) feedOnline.appendChild(banner);
-            }
-            banner.style.display = 'block';
-        } else {
-            if (banner) banner.style.display = 'none';
-        }
-    },
-
-    _detenerPollingLogs() {
-        clearInterval(this._logsInterval);
-        this._mostrarBannerCamara(false);
-        this._warnsCamaraConsecutivos = 0;
-    },
-
-    // ── Polling de contadores (BD vía API) ───────────────────────────────────
-    _iniciarPollingContadores() {
-        if (!this.activeLot) return;
-        const loteId = this.activeLot.id;
-
-        this._contadoresInterval = setInterval(async () => {
-            try {
-                const data = await ApiService.get(`/api/v1/lotes/${loteId}/resumen`);
+                const data = await ApiService.get(`/api/v1/captura/monitor/${loteId}?ultimas_lineas=10`);
                 if (!data) return;
 
-                const total  = data.total_paltas     ?? 0;
-                const buenas = data.cant_buenas       ?? 0;
-                const malas  = data.cant_defectuosas  ?? 0;
-
+                // 1. Actualizar Conteos
+                const res = data.resumen || {};
                 const elTotal  = document.getElementById('totalPaltas');
                 const elBuenas = document.getElementById('paltasBuenas');
                 const elMalas  = document.getElementById('paltasMalas');
 
-                if (elTotal)  elTotal.textContent  = total;
-                if (elBuenas) elBuenas.textContent = buenas;
-                if (elMalas)  elMalas.textContent  = malas;
-            } catch (_) {
-                // silencioso
+                if (elTotal)  elTotal.textContent  = res.total_paltas      ?? 0;
+                if (elBuenas) elBuenas.textContent = res.cant_buenas        ?? 0;
+                if (elMalas)  elMalas.textContent  = res.cant_defectuosas   ?? 0;
+
+                // 2. Procesar Logs
+                const lineas = data.logs || [];
+                if (lineas.length > 0) {
+                    const ultima = lineas[lineas.length - 1];
+                    if (ultima !== this._ultimaLineaLog) {
+                        this._ultimaLineaLog = ultima;
+                        
+                        const warnsRecientes = lineas.filter(l => l.includes('[WARN]') && l.includes('Camara')).length;
+                        if (warnsRecientes >= 3) {
+                            this._warnsCamaraConsecutivos++;
+                            if (this._warnsCamaraConsecutivos === 1) {
+                                UI.addLog('🔴 Cámara no detectada.', 'error');
+                                this._mostrarBannerCamara(true);
+                            }
+                        } else {
+                            if (this._warnsCamaraConsecutivos > 0) {
+                                UI.addLog('✅ Cámara recuperada.', 'success');
+                                this._mostrarBannerCamara(false);
+                            }
+                            this._warnsCamaraConsecutivos = 0;
+                            if (ultima.includes('[OK]')) UI.addLog(`📸 ${ultima}`, 'success');
+                        }
+                    }
+                }
+
+                // 3. Verificar si el servidor apagó la captura (por error o fin)
+                if (!data.captura_activa && this.isCapturing) {
+                    UI.addLog('⚠️ La captura se detuvo en el servidor.', 'warning');
+                    this.toggleCapture(false);
+                }
+
+            } catch (err) {
+                console.error('Error en el monitor:', err);
             }
         }, 2000);
     },
 
-    _detenerPollingContadores() {
-        clearInterval(this._contadoresInterval);
+    _detenerPollingMaestro() {
+        clearInterval(this._maestroInterval);
+        this._mostrarBannerCamara(false);
+        this._warnsCamaraConsecutivos = 0;
     },
 
     // ── Animación canvas: banda transportadora con paltas ────────────────────
@@ -523,5 +486,41 @@ const VisionModule = {
         ctx.fill();
 
         ctx.restore();
+    },
+
+    _mostrarBannerCamara(mostrar) {
+        let banner = document.getElementById('bannerCamaraSinSenal');
+        if (mostrar) {
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'bannerCamaraSinSenal';
+                banner.style.cssText = `
+                    position: absolute;
+                    top: 50%; left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0,0,0,0.82);
+                    border: 1px solid #dc3545;
+                    border-radius: 10px;
+                    padding: 16px 24px;
+                    text-align: center;
+                    z-index: 10;
+                    color: white;
+                `;
+                banner.innerHTML = `
+                    <div style="font-size:2rem; margin-bottom:8px;">📷</div>
+                    <div style="color:#dc3545; font-weight:700; font-size:0.95rem;">
+                        Cámara no detectada
+                    </div>
+                    <div style="color:rgba(255,255,255,0.6); font-size:0.75rem; margin-top:4px;">
+                        La API sigue activa y reintentando
+                    </div>
+                `;
+                const feedOnline = document.getElementById('feedOnline');
+                if (feedOnline) feedOnline.appendChild(banner);
+            }
+            banner.style.display = 'block';
+        } else {
+            if (banner) banner.style.display = 'none';
+        }
     }
 };

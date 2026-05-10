@@ -27,7 +27,10 @@ const HistoryModule = {
             tableBody.innerHTML = '';
             lotes.forEach(lote => {
                 const fecha = new Date(lote.fecha_ingreso_planta).toLocaleString();
-                const res   = lote.deteccion_resumen || {};
+                // Supabase devuelve el join como un array
+                const res = (lote.deteccion_resumen && lote.deteccion_resumen.length > 0) 
+                            ? lote.deteccion_resumen[0] 
+                            : {};
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td><strong>${lote.codigo_lote}</strong></td>
@@ -78,7 +81,9 @@ const HistoryModule = {
             : 'No registrada';
  
         // Rellenar métricas 
-        const res   = lote.deteccion_resumen || {};
+        const res = (lote.deteccion_resumen && lote.deteccion_resumen.length > 0) 
+                    ? lote.deteccion_resumen[0] 
+                    : {};
         const total  = res.total_paltas     || 0;
         const buenas = res.cant_buenas      || 0;
         const malas  = res.cant_defectuosas || 0;

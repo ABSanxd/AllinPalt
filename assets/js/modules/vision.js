@@ -50,6 +50,26 @@ const VisionModule = {
             el.classList.add('text-palt','fw-bold');
             UI.addLog(`🔍 Listo para procesar lote: ${this.activeLot.codigo_lote}`);
         }
+
+        // Rellenar ficha lateral de trazabilidad del lote activo
+        const noActiveEl = document.getElementById('noActiveLotInfo');
+        const activeEl = document.getElementById('activeLotInfo');
+        if (noActiveEl && activeEl && this.activeLot) {
+            noActiveEl.classList.add('d-none');
+            activeEl.classList.remove('d-none');
+
+            document.getElementById('infoCodigo').innerText = this.activeLot.codigo_lote;
+            document.getElementById('infoProveedor').innerText = this.activeLot.proveedor;
+            document.getElementById('infoOrigen').innerText = this.activeLot.lugar_origen || 'No registrado';
+
+            document.getElementById('infoCosecha').innerText = this.activeLot.fecha_cosecha
+                ? new Date(this.activeLot.fecha_cosecha + 'T00:00:00').toLocaleDateString('es-PE')
+                : 'No registrada';
+
+            document.getElementById('infoTemp').innerText = this.activeLot.temperatura_ambiente
+                ? this.activeLot.temperatura_ambiente + ' °C'
+                : 'No registrada';
+        }
     },
 
     disableControls() {
@@ -63,6 +83,14 @@ const VisionModule = {
             btnStop.disabled = true;
         }
         UI.addLog('⚠️ No hay ningún lote activo. Vaya a "Nuevo Lote" para comenzar.', 'warning');
+
+        // Mostrar aviso de sin lote activo en la ficha lateral
+        const noActiveEl = document.getElementById('noActiveLotInfo');
+        const activeEl = document.getElementById('activeLotInfo');
+        if (noActiveEl && activeEl) {
+            noActiveEl.classList.remove('d-none');
+            activeEl.classList.add('d-none');
+        }
     },
 
     // ── Toggle captura ───────────────────────────────────────────────────────

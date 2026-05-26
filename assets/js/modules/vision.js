@@ -29,6 +29,29 @@ const VisionModule = {
         const btnStart = document.getElementById('btnStartCapture');
         const btnStop  = document.getElementById('btnStopCapture');
 
+        // Cargar y persistir la URL de la cámara IP del celular
+        const ipInput = document.getElementById('ipCameraUrl');
+        if (ipInput) {
+            let savedUrl = localStorage.getItem('ip_camera_url');
+            if (savedUrl) {
+                ipInput.value = savedUrl;
+            }
+
+            // Consultar a la API cuál es la cámara por defecto del archivo .env
+            ApiService.get('/api/v1/captura/config-camara')
+                .then(data => {
+                    if (data && data.ip_camera_url && !savedUrl) {
+                        ipInput.value = data.ip_camera_url;
+                        localStorage.setItem('ip_camera_url', data.ip_camera_url);
+                    }
+                })
+                .catch(() => {});
+
+            ipInput.addEventListener('input', () => {
+                localStorage.setItem('ip_camera_url', ipInput.value.trim());
+            });
+        }
+
         const storedLot = localStorage.getItem('active_lot');
         if (storedLot) {
             this.activeLot = JSON.parse(storedLot);
@@ -179,16 +202,28 @@ const VisionModule = {
         const codigo = document.getElementById('feedLoteCodigo');
         if (codigo && this.activeLot) codigo.textContent = this.activeLot.codigo_lote;
 
-        // Delegamos al componente visual
-        VisionCanvas.start();
+        // Cargar el stream directo de la cámara del celular en el navegador (30 FPS nativos)
+        const previewImg = document.getElementById('bandaPreviewImage');
+        if (previewImg) {
+            const ipCameraUrl = localStorage.getItem('ip_camera_url') || '';
+            if (ipCameraUrl) {
+                previewImg.src = ipCameraUrl;
+            } else {
+                previewImg.src = '';
+                UI.addLog('⚠️ No se ha configurado la URL de la cámara celular IP.', 'warning');
+            }
+        }
     },
 
     _ocultarFeedActivo() {
         document.getElementById('feedOffline').classList.remove('feed-oculto');
         document.getElementById('feedOnline').classList.add('feed-oculto');
         
-        // Detenemos el componente visual
-        VisionCanvas.stop();
+        // Cortar la conexión de red del stream celular limpiando la fuente
+        const previewImg = document.getElementById('bandaPreviewImage');
+        if (previewImg) {
+            previewImg.removeAttribute('src');
+        }
     },
 
     // ── Cronómetro ───────────────────────────────────────────────────────────
@@ -266,7 +301,7 @@ const VisionModule = {
             } catch (err) {
                 console.error('Error en el monitor:', err);
             }
-        }, 2000);
+        }, 1000);
     },
 
     _detenerPollingMaestro() {

@@ -301,7 +301,7 @@ const VisionModule = {
             } catch (err) {
                 console.error('Error en el monitor:', err);
             }
-        }, 1000);
+        }, 500);
     },
 
     _detenerPollingMaestro() {

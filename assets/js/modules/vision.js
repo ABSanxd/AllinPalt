@@ -24,6 +24,10 @@ const VisionModule = {
     _canvasAnim: null,
     _canvasAnimId: null,
 
+    // Control de alertas de cámara
+    _descarteAlertaMostrada: false,
+
+
     // ── Init ─────────────────────────────────────────────────────────────────
     init() {
         const btnStart = document.getElementById('btnStartCapture');
@@ -269,6 +273,28 @@ const VisionModule = {
                 if (elBuenas) elBuenas.textContent = res.cant_buenas        ?? 0;
                 if (elMalas)  elMalas.textContent  = res.cant_defectuosas   ?? 0;
 
+                // ── Alerta de alto descarte ──────────────────────────────────
+                const totalPaltas     = res.total_paltas    ?? 0;
+                const cantDefectuosas = res.cant_defectuosas ?? 0;
+                
+                //se puso 1 (cantidad defectuosa) solo para visualizar la alerta, luego se puede cambiar para que sea realista
+                if (totalPaltas >= 1 && !this._descarteAlertaMostrada) {
+                    const porcentajeDescarte = cantDefectuosas / totalPaltas;
+
+                    if (porcentajeDescarte > 0.15) {
+                        const pct = (porcentajeDescarte * 100).toFixed(1);
+                        ToastComponent.show({
+                            message: `Lote ${this.activeLot.codigo_lote} supera el umbral`,
+                            subtitle: 'Umbral permitido: 15%',
+                            type: 'danger',
+                            pct: `${pct}%`,
+                            duration: 0,
+                        });
+                        this._descarteAlertaMostrada = true;
+                    }
+                }
+                // ─────────────────────────────────────────────────────────────
+
                 const lineas = data.logs || [];
                 if (lineas.length > 0) {
                     const ultima = lineas[lineas.length - 1];
@@ -308,6 +334,7 @@ const VisionModule = {
         clearInterval(this._maestroInterval);
         this._mostrarBannerCamara(false);
         this._warnsCamaraConsecutivos = 0;
+        this._descarteAlertaMostrada = false;
     },
 
     _mostrarBannerCamara(mostrar) {

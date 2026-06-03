@@ -155,11 +155,20 @@ const PredictionsModule = {
         const vidaUtilEl = document.getElementById('vidaUtil');
         if (vidaUtilEl) vidaUtilEl.textContent = data.vida_util_estimada ?? '--';
 
+        // Días desde cosecha
+        const diasCosechaEl = document.getElementById('diasCosecha');
+        if (diasCosechaEl) diasCosechaEl.textContent = data.dias_cosecha ?? '--';
+
         // Prioridad de venta
         const prioridadEl = document.getElementById('prioridadVenta');
         if (prioridadEl) {
             prioridadEl.textContent = data.prioridad_venta || '---';
-            const colores = { 'Alta': '#dc3545', 'Media': '#ffc107', 'Baja': '#198754' };
+            const colores = { 
+                'Alta': '#dc3545', 'ALTA': '#dc3545',
+                'Media': '#ffc107', 'MEDIA': '#ffc107',
+                'Baja': '#198754', 'BAJA': '#198754',
+                'DESCARTE': '#721c24', 'Descarte': '#721c24'
+            };
             prioridadEl.style.color = colores[data.prioridad_venta] || '#6c757d';
         }
 

@@ -111,6 +111,19 @@ const VisionModule = {
         }
         UI.addLog('⚠️ No hay ningún lote activo. Vaya a "Nuevo Lote" para comenzar.', 'warning');
 
+        // Resetear métricas a valores por defecto
+        const elLote = document.getElementById('currentLote');
+        if (elLote) {
+            elLote.innerText = '---';
+            elLote.className = 'stat-value fs-4 text-muted';
+        }
+        const elTotal  = document.getElementById('totalPaltas');
+        const elBuenas = document.getElementById('paltasBuenas');
+        const elMalas  = document.getElementById('paltasMalas');
+        if (elTotal)  elTotal.textContent  = '0';
+        if (elBuenas) elBuenas.textContent = '0';
+        if (elMalas)  elMalas.textContent  = '0';
+
         // Mostrar aviso de sin lote activo en la ficha lateral
         const noActiveEl = document.getElementById('noActiveLotInfo');
         const activeEl = document.getElementById('activeLotInfo');
@@ -185,11 +198,13 @@ const VisionModule = {
             this._detenerCronometro();
             this._detenerPollingMaestro();
 
-            try {
+             try {
                 await ApiService.post('/api/v1/captura/detener-captura');
                 UI.addLog('✅ Resumen guardado en Supabase.', 'success');
                 
                 localStorage.removeItem('active_lot');
+                this.activeLot = null;
+                this.disableControls();
                 window.location.hash = '#historial';
             } catch (error) {
                 console.error(error);
@@ -277,8 +292,8 @@ const VisionModule = {
                 const totalPaltas     = res.total_paltas    ?? 0;
                 const cantDefectuosas = res.cant_defectuosas ?? 0;
                 
-                //se puso 1 (cantidad defectuosa) solo para visualizar la alerta, luego se puede cambiar para que sea realista
-                if (totalPaltas >= 1 && !this._descarteAlertaMostrada) {
+                // Se evalúa la alerta de descarte una vez procesadas al menos 10 paltas para evitar falsos positivos iniciales
+                if (totalPaltas >= 10 && !this._descarteAlertaMostrada) {
                     const porcentajeDescarte = cantDefectuosas / totalPaltas;
 
                     if (porcentajeDescarte > 0.15) {

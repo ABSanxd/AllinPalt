@@ -33,27 +33,17 @@ const VisionModule = {
         const btnStart = document.getElementById('btnStartCapture');
         const btnStop  = document.getElementById('btnStopCapture');
 
-        // Cargar y persistir la URL de la cámara IP del celular
+        // Cargar la URL de la cámara IP del celular desde el Backend (.env)
         const ipInput = document.getElementById('ipCameraUrl');
         if (ipInput) {
-            let savedUrl = localStorage.getItem('ip_camera_url');
-            if (savedUrl) {
-                ipInput.value = savedUrl;
-            }
-
-            // Consultar a la API cuál es la cámara por defecto del archivo .env
+            // Consultar a la API cuál es la cámara configurada en el archivo .env
             ApiService.get('/api/v1/captura/config-camara')
                 .then(data => {
-                    if (data && data.ip_camera_url && !savedUrl) {
+                    if (data && data.ip_camera_url) {
                         ipInput.value = data.ip_camera_url;
-                        localStorage.setItem('ip_camera_url', data.ip_camera_url);
                     }
                 })
                 .catch(() => {});
-
-            ipInput.addEventListener('input', () => {
-                localStorage.setItem('ip_camera_url', ipInput.value.trim());
-            });
         }
 
         const storedLot = localStorage.getItem('active_lot');
@@ -224,7 +214,7 @@ const VisionModule = {
         // Cargar el stream directo de la cámara del celular en el navegador (30 FPS nativos)
         const previewImg = document.getElementById('bandaPreviewImage');
         if (previewImg) {
-            const ipCameraUrl = localStorage.getItem('ip_camera_url') || '';
+            const ipCameraUrl = document.getElementById('ipCameraUrl')?.value || '';
             if (ipCameraUrl) {
                 previewImg.src = ipCameraUrl;
             } else {

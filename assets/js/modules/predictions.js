@@ -21,39 +21,6 @@ const PredictionsModule = {
         });
     },
 
-    // ── SIMULACIÓN (solo para pruebas, quitar en producción) ─────────────────
-    simular(riesgo) {
-        const datos = {
-            alto: {
-                vida_util_estimada: 3,
-                prioridad_venta: 'Alta',
-                riesgo_deterioro: 'alto',
-                porcentaje_defectuosas: 42.5,
-                temperatura_climatica_futura: 29,
-                recomendacion: 'Vender inmediatamente. Alta proporción de paltas defectuosas y temperatura elevada aceleran el deterioro.'
-            },
-            medio: {
-                vida_util_estimada: 10,
-                prioridad_venta: 'Media',
-                riesgo_deterioro: 'medio',
-                porcentaje_defectuosas: 18.3,
-                temperatura_climatica_futura: 23,
-                recomendacion: 'Planifique la exportación dentro de los próximos 5 días para garantizar calidad óptima en destino.'
-            },
-            bajo: {
-                vida_util_estimada: 21,
-                prioridad_venta: 'Baja',
-                riesgo_deterioro: 'bajo',
-                porcentaje_defectuosas: 3.1,
-                temperatura_climatica_futura: 17,
-                recomendacion: 'Lote en excelentes condiciones. Puede almacenarse hasta 3 semanas sin pérdida significativa de calidad.'
-            }
-        };
-        this.updateDashboard(datos[riesgo]);
-        this._mostrarEstado('resultados');
-        UI.addLog(`🧪 Simulando predicción de riesgo ${riesgo.toUpperCase()}.`, 'warning');
-    },
-
     // ── Cargar lista de lotes en el selector ─────────────────────────────────
     async _cargarLotes() {
         const select     = document.getElementById('selectLote');
@@ -114,8 +81,9 @@ const PredictionsModule = {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Cargando...';
 
         try {
-            UI.addLog('🧠 Cargando predicción del sistema...');
-            const data = await ApiService.get(`/api/v1/predicciones/${loteId}`);
+            UI.addLog('🧠 Cargando predicción y recomendaciones del sistema experto...');
+            const apiRes = await ApiService.get(`/api/v1/recomendaciones/${loteId}`);
+            const data = apiRes.prediccion_actualizada || {};
 
             // Verificar que tenga al menos vida_util_estimada o riesgo_deterioro
             // Si no, la predicción aún no fue generada por el backend
@@ -167,7 +135,8 @@ const PredictionsModule = {
                 'Alta': '#dc3545', 'ALTA': '#dc3545',
                 'Media': '#ffc107', 'MEDIA': '#ffc107',
                 'Baja': '#198754', 'BAJA': '#198754',
-                'DESCARTE': '#721c24', 'Descarte': '#721c24'
+                'DESCARTE': '#721c24', 'Descarte': '#721c24',
+                'EXPORTAR': '#198754', 'VENTA LOCAL': '#fd7e14'
             };
             prioridadEl.style.color = colores[data.prioridad_venta] || '#6c757d';
         }

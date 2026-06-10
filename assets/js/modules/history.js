@@ -168,11 +168,13 @@ const HistoryModule = {
         const lote = this._lotes.find(l => l.id === loteId);
         if (!lote) { UI.showAlert('Error', 'No se encontraron datos del lote.', 'error'); return; }
 
-        // Obtener predicción si existe
+        // Obtener predicción y recomendaciones si existen
         let prediccion = null;
         try {
-            const p = await ApiService.get(`/api/v1/predicciones/${loteId}`);
-            if (p && Object.keys(p).length > 0) prediccion = p;
+            const apiRes = await ApiService.get(`/api/v1/recomendaciones/${loteId}`);
+            if (apiRes && apiRes.prediccion_actualizada) {
+                prediccion = apiRes.prediccion_actualizada;
+            }
         } catch (_) {}
 
         const res     = this._getResumen(lote);

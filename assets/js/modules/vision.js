@@ -188,16 +188,31 @@ const VisionModule = {
             this._detenerCronometro();
             this._detenerPollingMaestro();
 
+            // Mostrar modal de carga UX para dar feedback al usuario
+            ModalComponent.show({
+                title: '⚙️ Procesando Resultados',
+                text: 'Generando resumen final, predicciones ML y conclusiones del Sistema Experto. Por favor espere...',
+                icon: 'info',
+                showCancel: false
+            });
+
              try {
                 await ApiService.post('/api/v1/captura/detener-captura');
                 UI.addLog('✅ Resumen guardado en Supabase.', 'success');
                 
+                if (ModalComponent.bootstrapModal) {
+                    ModalComponent.bootstrapModal.hide();
+                }
+
                 localStorage.removeItem('active_lot');
                 this.activeLot = null;
                 this.disableControls();
                 window.location.hash = '#historial';
             } catch (error) {
                 console.error(error);
+                if (ModalComponent.bootstrapModal) {
+                    ModalComponent.bootstrapModal.hide();
+                }
                 UI.showAlert('Error', 'Hubo un problema al cerrar el lote en el servidor.', 'error');
             }
         }

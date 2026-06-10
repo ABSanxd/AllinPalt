@@ -28,35 +28,51 @@ const LotesModule = {
             if (tempInput && climaPreviewInput) {
                 if (navigator.geolocation) {
                     UI.addLog('🌍 Solicitando permisos de geolocalización para clima real de la planta...');
+                    
+                    if (tempInput) {
+                        tempInput.placeholder = 'Cargando...';
+                        tempInput.value = '';
+                        tempInput.disabled = true;
+                    }
+                    if (climaPreviewInput) {
+                        climaPreviewInput.placeholder = 'Cargando...';
+                        climaPreviewInput.value = '';
+                    }
+                    if (feedbackLbl) {
+                        feedbackLbl.textContent = 'Consultando pronóstico climático de la planta...';
+                        feedbackLbl.className = 'form-text small text-muted';
+                    }
+
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
                             const lat = position.coords.latitude;
                             const lon = position.coords.longitude;
-                            
-                            if (feedbackLbl) {
-                                feedbackLbl.textContent = 'Consultando pronóstico climático de la planta...';
-                                feedbackLbl.className = 'form-text small text-muted';
-                            }
 
                             ApiService.get(`/api/v1/captura/clima-actual?lat=${lat}&lon=${lon}`)
                                 .then(data => {
                                     if (data && data.actual != null && data.promedio != null) {
                                         // Rellenar temperatura ambiente (actual) y futura estimada (promedio 5 días)
-                                        tempInput.value = data.actual;
-                                        climaPreviewInput.value = `${data.promedio} °C`;
+                                        if (tempInput) {
+                                            tempInput.disabled = false;
+                                            tempInput.value = data.actual;
+                                        }
+                                        if (climaPreviewInput) climaPreviewInput.value = `${data.promedio} °C`;
                                         
                                         UI.addLog(`☀️ Clima actual de la planta autocompletado a ${data.actual}°C (Geolocalización).`, 'success');
                                         if (feedbackLbl) {
-                                            feedbackLbl.textContent = '✅ Pronóstico futuro de 5 días de la planta recuperado por geolocalización.';
+                                            feedbackLbl.innerHTML = '<i class="fas fa-check-circle me-1"></i> Pronóstico futuro de 5 días de la planta recuperado por geolocalización.';
                                             feedbackLbl.className = 'form-text small text-success';
                                         }
                                     }
                                 })
                                 .catch(() => {
-                                    tempInput.value = 20.0;
-                                    climaPreviewInput.value = '20.0 °C';
+                                    if (tempInput) {
+                                        tempInput.disabled = false;
+                                        tempInput.value = 20.0;
+                                    }
+                                    if (climaPreviewInput) climaPreviewInput.value = '20.0 °C';
                                     if (feedbackLbl) {
-                                        feedbackLbl.textContent = '⚠️ Error al cargar clima real. Usando temperatura estándar por defecto (20°C).';
+                                        feedbackLbl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Error al cargar clima real. Usando temperatura estándar por defecto (20°C).';
                                         feedbackLbl.className = 'form-text small text-warning';
                                     }
                                 });
@@ -72,27 +88,36 @@ const LotesModule = {
                             ApiService.get('/api/v1/captura/clima-actual?ciudad=Lima')
                                 .then(data => {
                                     if (data && data.actual != null && data.promedio != null) {
-                                        tempInput.value = data.actual;
-                                        climaPreviewInput.value = `${data.promedio} °C`;
+                                        if (tempInput) {
+                                            tempInput.disabled = false;
+                                            tempInput.value = data.actual;
+                                        }
+                                        if (climaPreviewInput) climaPreviewInput.value = `${data.promedio} °C`;
                                         if (feedbackLbl) {
-                                            feedbackLbl.textContent = '✅ Pronóstico futuro de 5 días de la planta (Lima) recuperado por fallback.';
+                                            feedbackLbl.innerHTML = '<i class="fas fa-check-circle me-1"></i> Pronóstico futuro de 5 días de la planta (Lima) recuperado por fallback.';
                                             feedbackLbl.className = 'form-text small text-success';
                                         }
                                     }
                                 })
                                 .catch(() => {
-                                    tempInput.value = 20.0;
-                                    climaPreviewInput.value = '20.0 °C';
+                                    if (tempInput) {
+                                        tempInput.disabled = false;
+                                        tempInput.value = 20.0;
+                                    }
+                                    if (climaPreviewInput) climaPreviewInput.value = '20.0 °C';
                                     if (feedbackLbl) {
-                                        feedbackLbl.textContent = '⚠️ Error de red. Usando temperatura por defecto (20°C).';
+                                        feedbackLbl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Error de red. Usando temperatura por defecto (20°C).';
                                         feedbackLbl.className = 'form-text small text-danger';
                                     }
                                 });
                         }
                     );
                 } else {
-                    tempInput.value = 20.0;
-                    climaPreviewInput.value = '20.0 °C';
+                    if (tempInput) {
+                        tempInput.disabled = false;
+                        tempInput.value = 20.0;
+                    }
+                    if (climaPreviewInput) climaPreviewInput.value = '20.0 °C';
                 }
             }
         }

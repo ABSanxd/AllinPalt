@@ -131,14 +131,9 @@ const PredictionsModule = {
         const prioridadEl = document.getElementById('prioridadVenta');
         if (prioridadEl) {
             prioridadEl.textContent = data.prioridad_venta || '---';
-            const colores = { 
-                'Alta': '#dc3545', 'ALTA': '#dc3545',
-                'Media': '#ffc107', 'MEDIA': '#ffc107',
-                'Baja': '#198754', 'BAJA': '#198754',
-                'DESCARTE': '#721c24', 'Descarte': '#721c24',
-                'EXPORTAR': '#198754', 'VENTA LOCAL': '#fd7e14'
-            };
-            prioridadEl.style.color = colores[data.prioridad_venta] || '#6c757d';
+            const key = (data.prioridad_venta || '').toUpperCase();
+            const prioInfo = AppConfig.prioridad[key];
+            prioridadEl.style.color = prioInfo ? prioInfo.color : '#6c757d';
         }
 
         // Tarjeta de riesgo
@@ -156,6 +151,43 @@ const PredictionsModule = {
         // Recomendación
         const recomEl = document.getElementById('recomendacionTexto');
         if (recomEl) recomEl.textContent = data.recomendacion || 'Sin recomendación disponible.';
+
+        // Badges de Justificación Visual
+        const badgesEl = document.getElementById('recomendacionBadges');
+        if (badgesEl) {
+            badgesEl.innerHTML = '';
+            
+            // Badge Comercial Dinámico (Basado en la Prioridad de Venta)
+            if (data.prioridad_venta) {
+                const prio = data.prioridad_venta.toUpperCase();
+                if (prio === 'BAJA') {
+                    badgesEl.innerHTML += `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle"><i class="fas fa-ship me-1"></i> Apto para Exportación</span>`;
+                } else if (prio === 'MEDIA') {
+                    badgesEl.innerHTML += `<span class="badge border" style="background-color: #fff7ed !important; color: #ea580c !important; border-color: #ffedd5 !important;"><i class="fas fa-store me-1"></i> Venta Local</span>`;
+                } else if (prio === 'ALTA') {
+                    badgesEl.innerHTML += `<span class="badge border" style="background-color: #fdf2f8 !important; color: #db2777 !important; border-color: #fbcfe8 !important;"><i class="fas fa-shipping-fast me-1"></i> Venta Local Inmediata</span>`;
+                } else if (prio === 'DESCARTE') {
+                    badgesEl.innerHTML += `<span class="badge border" style="background-color: #fce7f3 !important; color: #9d174d !important; border-color: #fbcfe8 !important;"><i class="fas fa-trash-alt me-1"></i> Descarte / Procesamiento</span>`;
+                }
+            }
+
+            if (data.madurez_promedio != null) {
+                if (data.madurez_promedio < 1.0) badgesEl.innerHTML += `<span class="badge bg-dark-subtle text-dark border border-dark-subtle"><i class="fas fa-ban me-1"></i> Pérdida Total (M < 1)</span>`;
+                else if (data.madurez_promedio < 2.5) badgesEl.innerHTML += `<span class="badge bg-success-subtle text-success-emphasis border border-success-subtle"><i class="fas fa-check-circle me-1"></i> Madurez Óptima (M < 2.5)</span>`;
+                else if (data.madurez_promedio >= 4.0) badgesEl.innerHTML += `<span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle"><i class="fas fa-exclamation-circle me-1"></i> Sobre-maduro (M ≥ 4)</span>`;
+                else badgesEl.innerHTML += `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-info-circle me-1"></i> Madurez Intermedia</span>`;
+            }
+            if (data.temperatura_ambiente != null) {
+                if (data.temperatura_ambiente >= 25) badgesEl.innerHTML += `<span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle"><i class="fas fa-thermometer-full me-1"></i> Planta Muy Cálida (≥ 25°C)</span>`;
+                else if (data.temperatura_ambiente >= 20) badgesEl.innerHTML += `<span class="badge border" style="background-color: #fdf2f8 !important; color: #db2777 !important; border-color: #fbcfe8 !important;"><i class="fas fa-thermometer-half me-1"></i> Planta Cálida (≥ 20°C)</span>`;
+                else badgesEl.innerHTML += `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle"><i class="fas fa-thermometer-quarter me-1"></i> Planta Fresca (< 20°C)</span>`;
+            }
+            if (data.temperatura_climatica_futura != null) {
+                if (data.temperatura_climatica_futura >= 25) badgesEl.innerHTML += `<span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle"><i class="fas fa-sun me-1"></i> Futuro Muy Cálido (≥ 25°C)</span>`;
+                else if (data.temperatura_climatica_futura >= 20) badgesEl.innerHTML += `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="fas fa-cloud-sun me-1"></i> Futuro Cálido (≥ 20°C)</span>`;
+                else badgesEl.innerHTML += `<span class="badge bg-info-subtle text-info-emphasis border border-info-subtle"><i class="fas fa-cloud me-1"></i> Futuro Fresco (< 20°C)</span>`;
+            }
+        }
     },
 
     // ── Colores y textos dinámicos de la tarjeta de riesgo ───────────────────
@@ -168,36 +200,27 @@ const PredictionsModule = {
 
         if (!card) return;
 
-        const config = {
-            alto: {
-                color: '#dc3545', label: 'ALTO',
-                badge: 'Acción inmediata', badgeBg: 'bg-danger',
-                icono: '🚨',
-                desc: 'El lote presenta condiciones que aceleran su deterioro. Proceda con venta o exportación de inmediato.'
-            },
-            medio: {
-                color: '#856404', label: 'MEDIO',
-                badge: 'Monitorear', badgeBg: 'bg-warning text-dark',
-                icono: '⚠️',
-                desc: 'El lote tiene riesgo moderado. Planifique la distribución en los próximos días.'
-            },
-            bajo: {
-                color: '#198754', label: 'BAJO',
-                badge: 'Condiciones normales', badgeBg: 'bg-success',
-                icono: '✅',
-                desc: 'El lote está en buenas condiciones. Puede almacenarse o exportarse según lo planificado.'
-            }
-        };
-
-        const c = config[nivel.toLowerCase()] || null;
-        if (!c) return;
+        const key = (nivel || '').toUpperCase();
+        const c = AppConfig.riesgo[key];
+        
+        if (!c) {
+            // Reset por defecto si no hay datos
+            card.style.setProperty('border-color', '#6c757d', 'important');
+            label.textContent = '---';
+            label.style.color = '#6c757d';
+            badge.textContent = 'Sin datos';
+            badge.className   = 'badge bg-secondary';
+            icono.innerHTML   = '<i class="fas fa-question-circle text-muted"></i>';
+            desc.textContent  = 'Seleccione un lote para ver el análisis de riesgo.';
+            return;
+        }
 
         card.style.setProperty('border-color', c.color, 'important');
-        label.textContent = c.label;
+        label.textContent = key;
         label.style.color = c.color;
         badge.textContent = c.badge;
-        badge.className   = `badge ${c.badgeBg}`;
-        icono.textContent = c.icono;
+        badge.className   = `badge ${c.badgeClass}`;
+        icono.innerHTML   = c.icono;
         desc.textContent  = c.desc;
     }
 };
